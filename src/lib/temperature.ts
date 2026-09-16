@@ -12,6 +12,10 @@ export function convertTemperatureFromCelsius(temperatureC: number | null, unit:
   return temperatureC;
 }
 
+export function unitLabel(unit: Unit) {
+  return unit === 'celsius' ? '°C' : '°F';
+}
+
 export function formatTemperature(temperatureC: number | null, unit: Unit) {
   const temperature = convertTemperatureFromCelsius(temperatureC, unit);
 
@@ -24,5 +28,5 @@ export function formatTemperature(temperatureC: number | null, unit: Unit) {
     minimumFractionDigits: 0,
   }).format(temperature);
 
-  return `${value}°${unit === 'celsius' ? 'C' : 'F'}`;
+  return `${value}${unitLabel(unit)}`;
 }
