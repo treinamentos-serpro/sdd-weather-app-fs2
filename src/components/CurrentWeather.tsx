@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { formatTemperature } from '../lib/temperature';
 import { getWeatherCodeInfo } from '../lib/weatherCodes';
 import type { City, CurrentWeather as CurrentWeatherData, Unit } from '../types/weather';
@@ -19,43 +20,51 @@ const numberFormatter = new Intl.NumberFormat('pt-BR', {
 });
 
 function formatMetric(value: number | null, suffix: string) {
-  if (value === null) {
+  if (value === null || !Number.isFinite(value)) {
     return '—';
   }
 
   return `${numberFormatter.format(value)} ${suffix}`;
 }
 
-function MetricCard({ label, value }: MetricItem) {
+const MetricCard = memo(function MetricCard({ label, value }: MetricItem) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/5 p-3 backdrop-blur-md">
       <dt className="text-xs font-medium uppercase text-white/70">{label}</dt>
       <dd className="mt-1 text-lg font-semibold text-white">{value}</dd>
     </div>
   );
-}
+});
 
-export default function CurrentWeather({ city, current, unit }: CurrentWeatherProps) {
+function CurrentWeather({ city, current, unit }: CurrentWeatherProps) {
   const weather = getWeatherCodeInfo(current.weatherCode);
   const locationLabel = [city.name, city.region, city.country].filter(Boolean).join(', ');
-  const metrics: MetricItem[] = [
-    {
-      label: 'Umidade',
-      value: formatMetric(current.relativeHumidity, '%'),
-    },
-    {
-      label: 'Vento',
-      value: formatMetric(current.windSpeedKmh, 'km/h'),
-    },
-    {
-      label: 'Precipitação',
-      value: formatMetric(current.precipitationMm, 'mm'),
-    },
-    {
-      label: 'Pressão',
-      value: formatMetric(current.surfacePressureHpa, 'hPa'),
-    },
-  ];
+  const metrics: MetricItem[] = useMemo(
+    () => [
+      {
+        label: 'Umidade',
+        value: formatMetric(current.relativeHumidity, '%'),
+      },
+      {
+        label: 'Vento',
+        value: formatMetric(current.windSpeedKmh, 'km/h'),
+      },
+      {
+        label: 'Precipitação',
+        value: formatMetric(current.precipitationMm, 'mm'),
+      },
+      {
+        label: 'Pressão',
+        value: formatMetric(current.surfacePressureHpa, 'hPa'),
+      },
+    ],
+    [
+      current.relativeHumidity,
+      current.windSpeedKmh,
+      current.precipitationMm,
+      current.surfacePressureHpa,
+    ],
+  );
 
   return (
     <section
@@ -87,3 +96,5 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
     </section>
   );
 }
+
+export default memo(CurrentWeather);

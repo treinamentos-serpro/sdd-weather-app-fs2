@@ -38,16 +38,21 @@ function WeatherWithUnitToggle() {
 }
 
 describe('SearchBar', () => {
-  it('does not call onSearch when the input is empty', async () => {
+  it.each(['', '   '])('shows validation and does not search for %j', async (value) => {
     const onSearch = vi.fn();
     const user = userEvent.setup();
 
     render(<SearchBar onSearch={onSearch} />);
 
-    expect(screen.getByLabelText('Cidade')).toHaveValue('');
+    if (value) {
+      await user.type(screen.getByLabelText('Cidade'), value);
+    }
     await user.click(screen.getByRole('button', { name: 'Buscar' }));
 
     expect(onSearch).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Informe pelo menos 2 caracteres para buscar uma cidade.',
+    );
   });
 
   it('calls onSearch with the entered term', async () => {
@@ -60,6 +65,18 @@ describe('SearchBar', () => {
     await user.click(screen.getByRole('button', { name: 'Buscar' }));
 
     expect(onSearch).toHaveBeenCalledWith('São Paulo');
+  });
+
+  it('preserves accents, hyphens and apostrophes in the search term', async () => {
+    const onSearch = vi.fn();
+    const user = userEvent.setup();
+
+    render(<SearchBar onSearch={onSearch} />);
+
+    await user.type(screen.getByLabelText('Cidade'), "L'Aquila-São José");
+    await user.click(screen.getByRole('button', { name: 'Buscar' }));
+
+    expect(onSearch).toHaveBeenCalledWith("L'Aquila-São José");
   });
 });
 
@@ -120,5 +137,21 @@ describe('partial response fallback', () => {
     render(<ForecastCard day={partialDay} timezone="America/Sao_Paulo" unit="celsius" />);
 
     expect(screen.getAllByText('—')).toHaveLength(3);
+  });
+
+  it('does not render NaN or undefined for invalid optional values', () => {
+    const invalidCurrent = {
+      temperatureC: Number.NaN,
+      relativeHumidity: Number.POSITIVE_INFINITY,
+      windSpeedKmh: undefined,
+      surfacePressureHpa: 1015.7,
+      precipitationMm: 0,
+      weatherCode: null,
+    } as never;
+
+    render(<CurrentWeather city={city} current={invalidCurrent} unit="celsius" />);
+
+    expect(screen.getAllByText('—')).toHaveLength(3);
+    expect(screen.queryByText(/NaN|undefined/)).not.toBeInTheDocument();
   });
 });

@@ -145,6 +145,19 @@ function nullableNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function isValidTimezone(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length === 0) {
+    return false;
+  }
+
+  try {
+    new Intl.DateTimeFormat('pt-BR', { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function getDailyValue(values: unknown, index: number): number | null {
   return Array.isArray(values) ? nullableNumber(values[index]) : null;
 }
@@ -216,8 +229,7 @@ export async function getWeather(city: City): Promise<WeatherData> {
   if (
     !forecastPayload.current ||
     !forecastPayload.daily ||
-    typeof forecastPayload.timezone !== 'string' ||
-    forecastPayload.timezone.length === 0 ||
+    !isValidTimezone(forecastPayload.timezone) ||
     typeof forecastPayload.current.time !== 'string' ||
     forecastPayload.current.time.length === 0
   ) {

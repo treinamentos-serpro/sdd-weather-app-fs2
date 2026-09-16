@@ -69,6 +69,12 @@ describe('searchCities', () => {
     await expect(searchCities('São Paulo')).resolves.toEqual([]);
   });
 
+  it('returns an empty list when geocoding returns no results', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ results: [] })));
+
+    await expect(searchCities('Cidade Inexistente')).resolves.toEqual([]);
+  });
+
   it('throws WeatherServiceError for a non-ok response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({}, false, 404)));
 
@@ -305,6 +311,53 @@ describe('getWeather', () => {
       temperatureMaxC: null,
       precipitationMm: null,
       precipitationProbability: null,
+      weatherCode: null,
+    });
+  });
+
+  it('normalizes null, undefined and non-finite optional fields to safe values', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          timezone: 'America/Sao_Paulo',
+          current: {
+            time: '2026-09-16T12:00',
+            temperature_2m: Number.NaN,
+            relative_humidity_2m: undefined,
+            wind_speed_10m: Number.POSITIVE_INFINITY,
+            surface_pressure: null,
+            precipitation: null,
+            weather_code: undefined,
+          },
+          daily: {
+            time: dailyForecast.time,
+            temperature_2m_min: [undefined, null, Number.NaN, 17.8, 19.3],
+            temperature_2m_max: [25.1, null, Number.POSITIVE_INFINITY, 24.8, 28.2],
+            precipitation_sum: [null, undefined, 3.2, 0, 0],
+            precipitation_probability_max: [12, Number.NaN, null, 18, 8],
+            weather_code: [undefined, 61, 63, 1, 0],
+          },
+        }),
+      ),
+    );
+
+    const weather = await getWeather(city);
+
+    expect(weather.current).toEqual({
+      temperatureC: null,
+      relativeHumidity: null,
+      windSpeedKmh: null,
+      surfacePressureHpa: null,
+      precipitationMm: 0,
+      weatherCode: null,
+    });
+    expect(weather.forecast[0]).toEqual({
+      date: '2026-09-16',
+      temperatureMinC: null,
+      temperatureMaxC: 25.1,
+      precipitationMm: null,
+      precipitationProbability: 12,
       weatherCode: null,
     });
   });

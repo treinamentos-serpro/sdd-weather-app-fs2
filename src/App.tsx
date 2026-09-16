@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -15,7 +15,6 @@ export default function App() {
   const [unit, setUnit] = useState<Unit>('celsius');
   const { status, data, error, search, retry } = useWeather();
   const mainRef = useRef<HTMLElement>(null);
-  const content = renderContent();
 
   useEffect(() => {
     if (status !== 'idle') {
@@ -23,7 +22,7 @@ export default function App() {
     }
   }, [status]);
 
-  function renderContent() {
+  const content = useMemo(() => {
     switch (status) {
       case 'loading':
         return <LoadingState />;
@@ -51,7 +50,7 @@ export default function App() {
           />
         );
     }
-  }
+  }, [status, data, unit, error, retry]);
 
   return (
     <div className="min-h-screen bg-night-900 text-white">

@@ -31,6 +31,14 @@ describe('temperature utilities', () => {
     it('formats null temperatures as an em dash', () => {
       expect(formatTemperature(null, 'celsius')).toBe('—');
     });
+
+    it.each([
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      Number.NEGATIVE_INFINITY,
+    ])('formats non-finite temperature %s as an em dash', (temperature) => {
+      expect(formatTemperature(temperature, 'celsius')).toBe('—');
+    });
   });
 
   describe('unitLabel', () => {

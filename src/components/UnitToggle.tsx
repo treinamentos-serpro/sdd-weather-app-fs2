@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useRef } from 'react';
+import { type KeyboardEvent, memo, useRef } from 'react';
 import type { Unit } from '../types/weather';
 
 interface UnitToggleProps {
@@ -11,7 +11,7 @@ const units: Array<{ label: string; value: Unit }> = [
   { label: '°F', value: 'fahrenheit' },
 ];
 
-export default function UnitToggle({ unit, onChange }: UnitToggleProps) {
+function UnitToggle({ unit, onChange }: UnitToggleProps) {
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   function focusUnit(index: number) {
@@ -85,3 +85,5 @@ export default function UnitToggle({ unit, onChange }: UnitToggleProps) {
     </div>
   );
 }
+
+export default memo(UnitToggle);

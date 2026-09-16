@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ForecastDay, Unit } from '../types/weather';
 import ForecastCard from './ForecastCard';
 
@@ -7,7 +8,7 @@ interface ForecastListProps {
   timezone: string;
 }
 
-export default function ForecastList({ forecast, unit, timezone }: ForecastListProps) {
+function ForecastList({ forecast, unit, timezone }: ForecastListProps) {
   return (
     <section aria-labelledby="forecast-title">
       <h2 id="forecast-title" className="text-lg font-semibold text-white">
@@ -21,3 +22,5 @@ export default function ForecastList({ forecast, unit, timezone }: ForecastListP
     </section>
   );
 }
+
+export default memo(ForecastList);

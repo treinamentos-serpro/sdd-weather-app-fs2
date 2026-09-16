@@ -63,7 +63,7 @@ test('searches a city and converts the displayed temperature to Fahrenheit', asy
 });
 
 test('shows "Nenhuma cidade encontrada" when geocoding returns no results', async ({ page }) => {
-  await mockGeocoding(page, {});
+  await mockGeocoding(page, { results: [] });
 
   await page.goto('/');
   await page.getByLabel('Cidade').fill('Cidade Inexistente');
@@ -72,6 +72,41 @@ test('shows "Nenhuma cidade encontrada" when geocoding returns no results', asyn
   await expect(
     page.getByRole('heading', { name: 'Nenhuma cidade encontrada', exact: true }),
   ).toBeVisible();
+});
+
+test('preserves special characters in the geocoding query', async ({ page }) => {
+  let requestedUrl = '';
+  await page.route('https://geocoding-api.open-meteo.com/v1/search**', async (route) => {
+    requestedUrl = route.request().url();
+    await route.fulfill({ json: { results: [] } });
+  });
+
+  await page.goto('/');
+  await page.getByLabel('Cidade').fill("L'Aquila-São José");
+  await page.getByRole('button', { name: 'Buscar' }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Nenhuma cidade encontrada', exact: true }),
+  ).toBeVisible();
+  expect(new URL(requestedUrl).searchParams.get('name')).toBe("L'Aquila-São José");
+});
+
+test('shows an error when the forecast response is incomplete', async ({ page }) => {
+  await mockGeocoding(page, geocodingResponse);
+  await mockForecast(page, {
+    ...forecastResponse,
+    daily: { ...forecastResponse.daily, time: forecastResponse.daily.time.slice(0, 4) },
+  });
+
+  await page.goto('/');
+  await page.getByLabel('Cidade').fill('São Paulo');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Não foi possível carregar o clima' }),
+  ).toBeVisible();
+  await expect(page.getByText('A resposta da previsão está incompleta.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Previsão de 5 dias' })).not.toBeVisible();
 });
 
 test.describe('mobile viewport', () => {

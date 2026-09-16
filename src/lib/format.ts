@@ -30,16 +30,20 @@ export function formatDayLabel(date: string, timezone: string) {
     return 'Data indisponível';
   }
 
-  return new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    timeZone: timezone,
-  }).format(parsedDate);
+  try {
+    return new Intl.DateTimeFormat('pt-BR', {
+      weekday: 'short',
+      day: '2-digit',
+      month: '2-digit',
+      timeZone: timezone,
+    }).format(parsedDate);
+  } catch {
+    return 'Data indisponível';
+  }
 }
 
 export function formatPercentage(value: number | null) {
-  if (value === null) {
+  if (value === null || !Number.isFinite(value)) {
     return '—';
   }
 

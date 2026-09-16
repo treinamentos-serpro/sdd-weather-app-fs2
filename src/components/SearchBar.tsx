@@ -30,6 +30,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
 
   return (
     <form
+      aria-busy={disabled}
       aria-label="Buscar previsão do tempo"
       className="flex w-full flex-col gap-3 rounded-lg border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/20 backdrop-blur-md sm:flex-row sm:items-end"
       onSubmit={handleSubmit}
@@ -62,8 +63,9 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
         ) : null}
       </div>
       <button
-        className="min-h-11 rounded-md bg-accent-500 px-5 py-3 text-sm font-semibold text-night-900 transition hover:bg-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 focus:ring-offset-night-900 disabled:cursor-not-allowed disabled:opacity-60 sm:shrink-0"
-        disabled={disabled || city.trim().length === 0}
+        aria-busy={disabled}
+        className="min-h-11 rounded-md bg-accent-500 px-5 py-3 text-sm font-semibold text-night-900 transition hover:enabled:bg-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 focus:ring-offset-night-900 disabled:cursor-not-allowed disabled:opacity-60 sm:shrink-0"
+        disabled={disabled}
         type="submit"
       >
         Buscar

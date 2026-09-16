@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { formatDayLabel, formatPercentage } from '../lib/format';
 import { formatTemperature } from '../lib/temperature';
 import { getWeatherCodeInfo } from '../lib/weatherCodes';
@@ -9,7 +10,7 @@ interface ForecastCardProps {
   timezone: string;
 }
 
-export default function ForecastCard({ day, unit, timezone }: ForecastCardProps) {
+function ForecastCard({ day, unit, timezone }: ForecastCardProps) {
   const weather = getWeatherCodeInfo(day.weatherCode);
   const maxTemperature = formatTemperature(day.temperatureMaxC, unit);
   const minTemperature = formatTemperature(day.temperatureMinC, unit);
@@ -49,3 +50,5 @@ export default function ForecastCard({ day, unit, timezone }: ForecastCardProps)
     </article>
   );
 }
+
+export default memo(ForecastCard);

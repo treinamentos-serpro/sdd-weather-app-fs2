@@ -1,7 +1,7 @@
 import type { Unit } from '../types/weather';
 
 export function convertTemperatureFromCelsius(temperatureC: number | null, unit: Unit) {
-  if (temperatureC === null) {
+  if (temperatureC === null || !Number.isFinite(temperatureC)) {
     return null;
   }
 
