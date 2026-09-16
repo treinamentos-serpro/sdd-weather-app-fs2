@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 const geocodingResponse = {
   results: [
@@ -34,22 +34,66 @@ const forecastResponse = {
   },
 };
 
-test('searches a city and converts the displayed temperature to Fahrenheit', async ({ page }) => {
+async function mockGeocoding(page: Page, json: unknown) {
   await page.route('https://geocoding-api.open-meteo.com/v1/search**', async (route) => {
-    await route.fulfill({ json: geocodingResponse });
+    await route.fulfill({ json });
   });
+}
+
+async function mockForecast(page: Page, json: unknown) {
   await page.route('https://api.open-meteo.com/v1/forecast**', async (route) => {
-    await route.fulfill({ json: forecastResponse });
+    await route.fulfill({ json });
   });
+}
+
+test('searches a city and converts the displayed temperature to Fahrenheit', async ({ page }) => {
+  await mockGeocoding(page, geocodingResponse);
+  await mockForecast(page, forecastResponse);
 
   await page.goto('/');
   await page.getByLabel('Cidade').fill('São Paulo');
   await page.getByRole('button', { name: 'Buscar' }).click();
 
-  await expect(page.getByText('São Paulo, São Paulo, Brasil')).toBeVisible();
+  await expect(page.getByText('São Paulo, São Paulo, Brasil', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Previsão de 5 dias' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Usar Fahrenheit' }).click();
 
   await expect(page.getByRole('heading', { name: 'Temperatura atual: 32°F' })).toBeVisible();
+});
+
+test('shows "Nenhuma cidade encontrada" when geocoding returns no results', async ({ page }) => {
+  await mockGeocoding(page, {});
+
+  await page.goto('/');
+  await page.getByLabel('Cidade').fill('Cidade Inexistente');
+  await page.getByRole('button', { name: 'Buscar' }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Nenhuma cidade encontrada', exact: true }),
+  ).toBeVisible();
+});
+
+test.describe('mobile viewport', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test('searches a city and renders the weather correctly on mobile', async ({
+    page,
+  }, testInfo) => {
+    // The "mobile" project already emulates an iPhone 13 (touch + UA); running the
+    // fixed 375x812 viewport there too would mix inconsistent device emulations
+    // for no extra coverage, so this check is limited to the desktop-engine project.
+    testInfo.skip(testInfo.project.name === 'mobile', 'already covered by the mobile project');
+
+    await mockGeocoding(page, geocodingResponse);
+    await mockForecast(page, forecastResponse);
+
+    await page.goto('/');
+    await page.getByLabel('Cidade').fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar' }).click();
+
+    await expect(page.getByText('São Paulo, São Paulo, Brasil', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Temperatura atual: 0°C' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Previsão de 5 dias' })).toBeVisible();
+  });
 });
