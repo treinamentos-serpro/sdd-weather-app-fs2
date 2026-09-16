@@ -75,7 +75,6 @@ export default function App() {
 
         <main
           aria-busy={status === 'loading'}
-          aria-live="polite"
           className="flex-1 py-8 focus:outline-none"
           id="weather-results"
           ref={mainRef}
@@ -87,4 +86,3 @@ export default function App() {
     </div>
   );
 }
-

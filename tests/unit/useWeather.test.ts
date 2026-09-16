@@ -168,3 +168,35 @@ describe('out-of-order responses', () => {
     expect(result.current.cities).toEqual([]);
   });
 });
+
+describe('offline network', () => {
+  it('shows a friendly offline message and recovers once connectivity returns', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useWeather());
+
+    act(() => {
+      result.current.search('São Paulo');
+    });
+
+    await waitFor(() => expect(result.current.status).toBe('error'));
+    expect(result.current.error).toBe(
+      'Sem conexão com a internet. Verifique sua rede e tente novamente.',
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    (navigator as { onLine: boolean }).onLine = true;
+    fetchMock
+      .mockResolvedValueOnce(geocodingResponse())
+      .mockResolvedValueOnce(jsonResponse(forecastPayload));
+
+    act(() => {
+      result.current.retry();
+    });
+
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.error).toBe('');
+  });
+});

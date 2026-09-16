@@ -14,7 +14,32 @@ export class WeatherServiceError extends Error {
   }
 }
 
+const OFFLINE_MESSAGE = 'Sem conexão com a internet. Verifique sua rede e tente novamente.';
+const TIMEOUT_MESSAGE = 'A busca demorou mais que o esperado. Tente novamente.';
+const NETWORK_ERROR_MESSAGE =
+  'Não foi possível conectar ao serviço de clima. Verifique sua conexão e tente novamente.';
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function describeHttpError(status: number, fallbackMessage: string): string {
+  if (status === 429) {
+    return 'Muitas requisições em pouco tempo. Aguarde um instante e tente novamente.';
+  }
+
+  if (status >= 500) {
+    return 'O serviço de clima está indisponível no momento. Tente novamente em instantes.';
+  }
+
+  return fallbackMessage;
+}
+
 async function fetchWithTimeout(url: string): Promise<Response> {
+  if (isOffline()) {
+    throw new WeatherServiceError(OFFLINE_MESSAGE);
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -22,9 +47,9 @@ async function fetchWithTimeout(url: string): Promise<Response> {
     return await fetch(url, { signal: controller.signal });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new WeatherServiceError('A requisição demorou demais.');
+      throw new WeatherServiceError(TIMEOUT_MESSAGE);
     }
-    throw new WeatherServiceError('Falha de rede.');
+    throw new WeatherServiceError(NETWORK_ERROR_MESSAGE);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -75,7 +100,9 @@ export async function searchCities(name: string): Promise<City[]> {
   const response = await fetchWithTimeout(url);
 
   if (!response.ok) {
-    throw new WeatherServiceError('Não foi possível buscar as localidades.');
+    throw new WeatherServiceError(
+      describeHttpError(response.status, 'Não foi possível buscar as localidades.'),
+    );
   }
 
   let payload: GeocodingResponse;
@@ -173,7 +200,9 @@ export async function getWeather(city: City): Promise<WeatherData> {
   const forecastResponse = await fetchWithTimeout(`${FORECAST_URL}?${params.toString()}`);
 
   if (!forecastResponse.ok) {
-    throw new WeatherServiceError('Não foi possível consultar a previsão do tempo.');
+    throw new WeatherServiceError(
+      describeHttpError(forecastResponse.status, 'Não foi possível consultar a previsão do tempo.'),
+    );
   }
 
   let forecastPayload: OpenMeteoResponse;

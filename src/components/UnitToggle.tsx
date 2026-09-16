@@ -53,8 +53,9 @@ export default function UnitToggle({ unit, onChange }: UnitToggleProps) {
   return (
     <div
       aria-label="Unidade de temperatura"
+      aria-orientation="horizontal"
       className="inline-flex rounded-lg border border-white/10 bg-white/5 p-1 shadow-xl shadow-black/20 backdrop-blur-md"
-      role="group"
+      role="toolbar"
     >
       {units.map((option, index) => {
         const isActive = option.value === unit;
