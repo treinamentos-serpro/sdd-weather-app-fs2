@@ -5,10 +5,28 @@ const GEOCODING_RESULT_COUNT = 10;
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const FORECAST_DAYS = 5;
 
+const FETCH_TIMEOUT_MS = 10_000;
+
 export class WeatherServiceError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'WeatherServiceError';
+  }
+}
+
+async function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new WeatherServiceError('A requisição demorou demais.');
+    }
+    throw new WeatherServiceError('Falha de rede.');
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -54,13 +72,7 @@ export async function searchCities(name: string): Promise<City[]> {
 
   const url = `${GEOCODING_URL}?name=${encodeURIComponent(trimmedName)}&count=${GEOCODING_RESULT_COUNT}&language=pt&format=json`;
 
-  let response: Response;
-
-  try {
-    response = await fetch(url);
-  } catch {
-    throw new WeatherServiceError('Não foi possível buscar as localidades.');
-  }
+  const response = await fetchWithTimeout(url);
 
   if (!response.ok) {
     throw new WeatherServiceError('Não foi possível buscar as localidades.');
@@ -173,13 +185,7 @@ export async function getWeather(city: City): Promise<WeatherData> {
       'temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,weather_code',
   });
 
-  let forecastResponse: Response;
-
-  try {
-    forecastResponse = await fetch(`${FORECAST_URL}?${params.toString()}`);
-  } catch {
-    throw new WeatherServiceError('Não foi possível consultar a previsão do tempo.');
-  }
+  const forecastResponse = await fetchWithTimeout(`${FORECAST_URL}?${params.toString()}`);
 
   if (!forecastResponse.ok) {
     throw new WeatherServiceError('Não foi possível consultar a previsão do tempo.');

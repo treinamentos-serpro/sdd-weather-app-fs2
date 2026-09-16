@@ -6,25 +6,14 @@ import EmptyState from './components/states/EmptyState';
 import ErrorState from './components/states/ErrorState';
 import LoadingState from './components/states/LoadingState';
 import UnitToggle from './components/UnitToggle';
-import { mockWeatherData } from './mocks/weather';
+import { useWeather } from './hooks/useWeather';
 import type { Unit } from './types/weather';
-
-type WeatherStatus = 'idle' | 'loading' | 'empty' | 'error' | 'success';
 
 const appTitleClassName = 'mt-1 text-3xl font-bold tracking-normal text-white';
 
-function normalizeSearchTerm(city: string) {
-  return city
-    .trim()
-    .toLocaleLowerCase('pt-BR')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
 export default function App() {
   const [unit, setUnit] = useState<Unit>('celsius');
-  const [status, setStatus] = useState<WeatherStatus>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+  const { status, data, error, search, retry } = useWeather();
   const mainRef = useRef<HTMLElement>(null);
   const content = renderContent();
 
@@ -34,28 +23,6 @@ export default function App() {
     }
   }, [status]);
 
-  function handleSearch(city: string) {
-    const normalizedCity = normalizeSearchTerm(city);
-
-    if (normalizedCity === 'carregando' || normalizedCity === 'loading') {
-      setStatus('loading');
-      return;
-    }
-
-    if (normalizedCity === 'erro' || normalizedCity === 'error') {
-      setErrorMessage('A previsão não respondeu. Tente novamente em alguns instantes.');
-      setStatus('error');
-      return;
-    }
-
-    if (normalizedCity.includes('sao') || normalizedCity.includes('paulo')) {
-      setStatus('success');
-      return;
-    }
-
-    setStatus('empty');
-  }
-
   function renderContent() {
     switch (status) {
       case 'loading':
@@ -63,27 +30,19 @@ export default function App() {
       case 'empty':
         return (
           <EmptyState
-            hint="Tente buscar por São Paulo enquanto a integração com a API não entra."
+            hint="Tente buscar por outra cidade ou verifique a grafia digitada."
             title="Nenhuma cidade encontrada"
           />
         );
       case 'error':
-        return <ErrorState message={errorMessage} onRetry={() => setStatus('success')} />;
+        return <ErrorState message={error} onRetry={retry} />;
       case 'success':
-        return (
+        return data ? (
           <div className="space-y-6">
-            <CurrentWeather
-              city={mockWeatherData.city}
-              current={mockWeatherData.current}
-              unit={unit}
-            />
-            <ForecastList
-              forecast={mockWeatherData.forecast}
-              timezone={mockWeatherData.timezone}
-              unit={unit}
-            />
+            <CurrentWeather city={data.city} current={data.current} unit={unit} />
+            <ForecastList forecast={data.forecast} timezone={data.timezone} unit={unit} />
           </div>
-        );
+        ) : null;
       case 'idle':
         return (
           <EmptyState
@@ -111,7 +70,7 @@ export default function App() {
             </div>
             <UnitToggle onChange={setUnit} unit={unit} />
           </div>
-          <SearchBar disabled={status === 'loading'} onSearch={handleSearch} />
+          <SearchBar disabled={status === 'loading'} onSearch={search} />
         </header>
 
         <main
@@ -128,3 +87,4 @@ export default function App() {
     </div>
   );
 }
+
