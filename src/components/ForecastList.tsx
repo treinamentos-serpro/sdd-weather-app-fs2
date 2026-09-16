@@ -11,7 +11,7 @@ export default function ForecastList({ forecast, unit, timezone }: ForecastListP
   return (
     <section aria-labelledby="forecast-title">
       <h2 id="forecast-title" className="text-lg font-semibold text-white">
-        Próximos dias
+        Previsão de 5 dias
       </h2>
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {forecast.map((day) => (

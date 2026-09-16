@@ -132,7 +132,7 @@ function mapCurrent(current: NonNullable<OpenMeteoResponse['current']>): Current
     relativeHumidity: nullableNumber(current.relative_humidity_2m),
     windSpeedKmh: nullableNumber(current.wind_speed_10m),
     surfacePressureHpa: nullableNumber(current.surface_pressure),
-    precipitationMm: nullableNumber(current.precipitation),
+    precipitationMm: nullableNumber(current.precipitation) ?? 0,
     weatherCode: nullableNumber(current.weather_code),
   };
 }
