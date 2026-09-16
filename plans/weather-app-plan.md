@@ -4,11 +4,12 @@ Fonte da verdade: [specs/weather-app-spec.md](../specs/weather-app-spec.md).
 
 ## Architecture
 
-A aplicação será uma SPA client-side, mobile-first, publicada como conteúdo estático. A arquitetura será dividida em três camadas pequenas:
+A aplicação será uma SPA client-side, mobile-first, publicada como conteúdo estático. A arquitetura será dividida em quatro camadas pequenas:
 
 1. **Apresentação (`src/components/`)**: formulário de busca, lista de sugestões, controles de unidade, estados da consulta, clima atual e previsão. Os componentes recebem dados e callbacks; não conhecem URLs nem o formato bruto da Open-Meteo.
 2. **Orquestração (`src/hooks/`)**: um hook de consulta coordena input, sugestões, cidade selecionada, forecast, unidade, loading, erro, retry e descarte de respostas obsoletas.
-3. **Domínio e infraestrutura (`src/services/` e `src/types/`)**: funções puras para validação, conversão, formatação, códigos meteorológicos e seleção dos cinco dias; serviços HTTP responsáveis somente por chamar e validar/normalizar a API.
+3. **Infraestrutura (`src/services/`)**: serviços HTTP responsáveis somente por chamar, classificar erros e normalizar a API externa.
+4. **Domínio (`src/lib/` e `src/types/`)**: funções puras para validação, conversão, formatação, códigos meteorológicos e seleção dos cinco dias; tipos compartilhados do modelo interno.
 
 O fluxo principal é geocoding -> seleção explícita de uma sugestão válida -> forecast. Não haverá backend, armazenamento persistente, autenticação, geolocalização ou cache na primeira versão. AbortController será usado para cancelar requisições substituídas quando possível; um identificador de operação continuará sendo obrigatório para impedir que respostas antigas alterem o estado atual.
 
@@ -17,7 +18,7 @@ O fluxo principal é geocoding -> seleção explícita de uma sugestão válida 
 - TypeScript em modo `strict`, com interfaces explícitas para dados brutos, dados normalizados e estado da interface.
 - React 19 + React DOM para a SPA.
 - Vite para desenvolvimento e build estático, respeitando `VITE_BASE` para publicação.
-- Tailwind CSS para layout responsivo e tema visual existente.
+- Tailwind CSS para layout responsivo e o tema dark glassmorphism definido nas instruções do projeto.
 - `fetch` nativo para HTTP, sem cliente adicional.
 - `Intl.DateTimeFormat` para datas em pt-BR e no timezone retornado pela fonte.
 - Vitest + Testing Library para testes unitários e de componentes; Playwright para fluxos E2E.
@@ -38,8 +39,11 @@ src/
     useWeatherSearch.ts
   services/
     openMeteo.ts
+  lib/
     weatherMapper.ts
     weatherRules.ts
+    temperature.ts
+    formatters.ts
   types/
     weather.ts
   App.tsx
@@ -75,6 +79,7 @@ type QueryStatus =
 type WeatherErrorKind =
   | 'invalid-input'
   | 'network'
+  | 'api'
   | 'timeout'
   | 'rate-limit'
   | 'unavailable'
@@ -134,6 +139,7 @@ Os tipos brutos da Open-Meteo devem ser internos aos serviços. A normalização
 6. O hook publica o report em Celsius e os componentes derivam a exibição da unidade escolhida. A troca de unidade é síncrona/local e não chama nenhum serviço.
 7. Uma operação recebe um request id. Ao concluir, só pode atualizar o estado se ainda for a operação vigente; isso descarta respostas atrasadas de buscas anteriores.
 8. Retry reutiliza somente os parâmetros da operação que falhou e dispara uma única requisição por acionamento.
+9. O início de uma nova busca limpa as sugestões e o erro de geocoding, mas mantém o forecast atual até uma nova cidade ser selecionada; a seleção limpa o forecast anterior antes de iniciar o forecast da nova localidade.
 
 ## External APIs
 
@@ -165,11 +171,10 @@ Os tipos brutos da Open-Meteo devem ser internos aos serviços. A normalização
 }
 ```
 
-- Mapeamento para `City`/`LocationSuggestion`:
+- Mapeamento para `LocationSuggestion`:
   - `id` -> `id`.
   - `name` -> `name`.
   - `country` -> `country`.
-  - `country_code` -> `countryCode` quando o modelo expuser esse campo.
   - `admin1` -> `region`.
   - `latitude` e `longitude` -> coordenadas numéricas.
 - `results` ausente ou vazio produz `empty`, sem iniciar forecast. Cada resultado precisa ter latitude e longitude finitas para ser selecionável.
@@ -210,9 +215,9 @@ Os tipos brutos da Open-Meteo devem ser internos aos serviços. A normalização
 }
 ```
 
-- Mapeamento para `WeatherData`/`WeatherReport`:
+- Mapeamento para `WeatherReport`:
   - `timezone` -> `timezone`; deve ser uma string válida.
-  - A cidade selecionada, mantida pelo estado da aplicação, -> `city`/`location`; latitude e longitude da resposta devem ser comparadas com a consulta quando a validação for implementada.
+  - A localidade selecionada, mantida pelo estado da aplicação, -> `location`; latitude e longitude da resposta devem ser comparadas com a consulta durante a validação.
   - `current.temperature_2m` -> `current.temperatureC`.
   - `current.relative_humidity_2m` -> `current.relativeHumidity`.
   - `current.wind_speed_10m` -> `current.windSpeedKmh`.
@@ -220,9 +225,9 @@ Os tipos brutos da Open-Meteo devem ser internos aos serviços. A normalização
   - `current.precipitation` -> `current.precipitationMm`.
   - `current.weather_code` -> `current.weatherCode`.
   - Para cada índice `i` de `daily.time`, criar um item `DailyForecast` com `time[i]` -> `date`, `temperature_2m_min[i]` -> `temperatureMinC`, `temperature_2m_max[i]` -> `temperatureMaxC`, `precipitation_sum[i]` -> `precipitationMm` e `weather_code[i]` -> `weatherCode`.
-- As séries diárias são arrays paralelos e devem ser validadas antes do mapeamento. `daily.time` precisa conter pelo menos cinco datas válidas; o normalizador seleciona exatamente os cinco primeiros itens correspondentes a hoje e aos quatro dias seguintes no timezone retornado. Campo meteorológico ausente pode virar `null`, mas timezone, coordenadas e datas essenciais inválidos produzem erro de dados.
+- As séries diárias são arrays paralelos e devem ser validadas antes do mapeamento. `daily.time` precisa conter pelo menos cinco datas válidas; o normalizador seleciona exatamente os cinco primeiros itens correspondentes a hoje e aos quatro dias seguintes no timezone retornado. Arrays opcionais ausentes ou com um item ausente produzem `null` somente nesse item; um campo opcional com formato incompatível produz erro de dados. Timezone, coordenadas e datas essenciais inválidos produzem erro de dados.
 - Respostas HTTP não-2xx, JSON inválido, timeout e indisponibilidade devem virar `QueryError`; detalhes da fonte não devem ser exibidos diretamente como mensagem principal.
-- O cliente deve usar timeout controlado com `AbortController`. O limite exato deve ser definido nas tarefas/testes e ser compartilhado pelas duas operações.
+- O cliente deve usar timeout controlado com `AbortController`, compartilhando um limite de 10 segundos entre geocoding e forecast. Cancelamento provocado por uma nova operação não deve ser apresentado como erro ao usuário.
 
 Nenhuma chave de API, credencial ou dado pessoal será usado ou persistido.
 
@@ -253,7 +258,7 @@ Acessibilidade faz parte do estado visível: combobox com `aria-expanded` e `ari
 - **Rede/timeout**: encerra loading, preserva a cidade selecionada quando aplicável e oferece retry da operação que falhou.
 - **Rate limit/indisponibilidade**: apresenta mensagem pt-BR compreensível e retry; não expõe stack trace ou payload bruto.
 - **Coordenadas inválidas**: impede o forecast e informa que a localidade não pode ser consultada.
-- **Dados inválidos**: rejeita forecast sem timezone, data atual, coordenadas válidas ou cinco datas válidas. Não apresenta uma previsão parcial como previsão de cinco dias.
+- **Dados inválidos**: rejeita forecast sem timezone, data atual, coordenadas válidas ou cinco datas válidas. Não apresenta uma previsão parcial como previsão de cinco dias. Um campo opcional ausente ou com item ausente é normalizado como `null`; um campo opcional com tipo incompatível é erro de dados.
 - **Campos opcionais ausentes**: mantém o cartão/linha visível e renderiza `—`.
 - **Código meteorológico desconhecido**: usa “Condição indisponível”.
 - **Respostas obsoletas**: são ignoradas por request id e, quando suportado, canceladas com AbortController.
