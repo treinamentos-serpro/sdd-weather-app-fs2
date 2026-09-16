@@ -19,6 +19,10 @@ type LastOperation = { type: 'search'; name: string } | { type: 'selectCity'; ci
 
 const DEFAULT_ERROR_MESSAGE = 'Não foi possível concluir a operação. Tente novamente.';
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof WeatherServiceError ? error.message : DEFAULT_ERROR_MESSAGE;
+}
+
 export function useWeather(): UseWeatherResult {
   const [status, setStatus] = useState<WeatherStatus>('idle');
   const [data, setData] = useState<WeatherData | null>(null);
@@ -26,24 +30,40 @@ export function useWeather(): UseWeatherResult {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const lastOperationRef = useRef<LastOperation>(null);
+  const operationIdRef = useRef(0);
 
   const loadWeather = useCallback(async (city: City) => {
+    const operationId = ++operationIdRef.current;
+    lastOperationRef.current = { type: 'selectCity', city };
     setStatus('loading');
+    setError('');
 
     try {
       const weather = await getWeather(city);
+      if (operationId !== operationIdRef.current) {
+        return;
+      }
+
       setData(weather);
       setStatus('success');
+      setError('');
     } catch (err) {
-      setError(err instanceof WeatherServiceError ? err.message : DEFAULT_ERROR_MESSAGE);
+      if (operationId !== operationIdRef.current) {
+        return;
+      }
+
+      setError(getErrorMessage(err));
       setStatus('error');
     }
   }, []);
 
   const runSearch = useCallback(
     async (name: string) => {
+      const operationId = ++operationIdRef.current;
       lastOperationRef.current = { type: 'search', name };
       setQuery(name);
+      setCities([]);
+      setError('');
       setStatus('loading');
 
       let results: City[];
@@ -51,8 +71,16 @@ export function useWeather(): UseWeatherResult {
       try {
         results = await searchCities(name);
       } catch (err) {
-        setError(err instanceof WeatherServiceError ? err.message : DEFAULT_ERROR_MESSAGE);
+        if (operationId !== operationIdRef.current) {
+          return;
+        }
+
+        setError(getErrorMessage(err));
         setStatus('error');
+        return;
+      }
+
+      if (operationId !== operationIdRef.current) {
         return;
       }
 
@@ -78,7 +106,6 @@ export function useWeather(): UseWeatherResult {
 
   const selectCity = useCallback(
     (city: City) => {
-      lastOperationRef.current = { type: 'selectCity', city };
       void loadWeather(city);
     },
     [loadWeather],

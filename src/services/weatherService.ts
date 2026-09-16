@@ -118,12 +118,8 @@ function nullableNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-function nullableString(value: unknown): string | null {
-  return typeof value === 'string' ? value : null;
-}
-
-function getDailyValue(values: unknown[] | null, index: number): number | null {
-  return values ? nullableNumber(values[index]) : null;
+function getDailyValue(values: unknown, index: number): number | null {
+  return Array.isArray(values) ? nullableNumber(values[index]) : null;
 }
 
 function isArray(value: unknown): value is unknown[] {
@@ -142,15 +138,7 @@ function mapCurrent(current: NonNullable<OpenMeteoResponse['current']>): Current
 }
 
 function mapForecast(daily: NonNullable<OpenMeteoResponse['daily']>): ForecastDay[] {
-  if (
-    !isArray(daily.time) ||
-    !isArray(daily.temperature_2m_min) ||
-    !isArray(daily.temperature_2m_max) ||
-    !isArray(daily.precipitation_sum) ||
-    !isArray(daily.precipitation_probability_max) ||
-    !isArray(daily.weather_code) ||
-    daily.time.length < FORECAST_DAYS
-  ) {
+  if (!isArray(daily.time) || daily.time.length < FORECAST_DAYS) {
     throw new WeatherServiceError('A resposta da previsão está incompleta.');
   }
 
@@ -161,14 +149,11 @@ function mapForecast(daily: NonNullable<OpenMeteoResponse['daily']>): ForecastDa
 
     return {
       date,
-      temperatureMinC: getDailyValue(daily.temperature_2m_min as unknown[], index),
-      temperatureMaxC: getDailyValue(daily.temperature_2m_max as unknown[], index),
-      precipitationMm: getDailyValue(daily.precipitation_sum as unknown[], index),
-      precipitationProbability: getDailyValue(
-        daily.precipitation_probability_max as unknown[],
-        index,
-      ),
-      weatherCode: getDailyValue(daily.weather_code as unknown[], index),
+      temperatureMinC: getDailyValue(daily.temperature_2m_min, index),
+      temperatureMaxC: getDailyValue(daily.temperature_2m_max, index),
+      precipitationMm: getDailyValue(daily.precipitation_sum, index),
+      precipitationProbability: getDailyValue(daily.precipitation_probability_max, index),
+      weatherCode: getDailyValue(daily.weather_code, index),
     };
   });
 }
@@ -199,7 +184,14 @@ export async function getWeather(city: City): Promise<WeatherData> {
     throw new WeatherServiceError('A resposta da previsão é inválida.');
   }
 
-  if (!forecastPayload.current || !forecastPayload.daily) {
+  if (
+    !forecastPayload.current ||
+    !forecastPayload.daily ||
+    typeof forecastPayload.timezone !== 'string' ||
+    forecastPayload.timezone.length === 0 ||
+    typeof forecastPayload.current.time !== 'string' ||
+    forecastPayload.current.time.length === 0
+  ) {
     throw new WeatherServiceError('A resposta da previsão está incompleta.');
   }
 
@@ -207,8 +199,8 @@ export async function getWeather(city: City): Promise<WeatherData> {
 
   return {
     city,
-    timezone: typeof forecastPayload.timezone === 'string' ? forecastPayload.timezone : '',
-    currentDate: nullableString(forecastPayload.current.time) ?? forecast[0].date,
+    timezone: forecastPayload.timezone,
+    currentDate: forecastPayload.current.time,
     current: mapCurrent(forecastPayload.current),
     forecast,
   };
