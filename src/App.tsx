@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -25,7 +25,14 @@ export default function App() {
   const [unit, setUnit] = useState<Unit>('celsius');
   const [status, setStatus] = useState<WeatherStatus>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const mainRef = useRef<HTMLElement>(null);
   const content = renderContent();
+
+  useEffect(() => {
+    if (status !== 'idle') {
+      mainRef.current?.focus();
+    }
+  }, [status]);
 
   function handleSearch(city: string) {
     const normalizedCity = normalizeSearchTerm(city);
@@ -90,6 +97,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-night-900 text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <a
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-10 focus:rounded-md focus:bg-accent-500 focus:px-4 focus:py-3 focus:font-semibold focus:text-night-900"
+          href="#weather-results"
+        >
+          Ir para o resultado da consulta
+        </a>
         <header className="space-y-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -101,7 +114,14 @@ export default function App() {
           <SearchBar disabled={status === 'loading'} onSearch={handleSearch} />
         </header>
 
-        <main aria-busy={status === 'loading'} aria-live="polite" className="flex-1 py-8">
+        <main
+          aria-busy={status === 'loading'}
+          aria-live="polite"
+          className="flex-1 py-8 focus:outline-none"
+          id="weather-results"
+          ref={mainRef}
+          tabIndex={-1}
+        >
           {content}
         </main>
       </div>

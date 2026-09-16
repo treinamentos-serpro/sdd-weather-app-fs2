@@ -16,7 +16,10 @@ export default function ForecastCard({ day, unit, timezone }: ForecastCardProps)
   const rainProbability = formatPercentage(day.precipitationProbability);
 
   return (
-    <article className="rounded-lg border border-white/10 bg-white/5 p-4 shadow-xl shadow-black/20 backdrop-blur-md">
+    <article
+      aria-label={`Previsão para ${formatDayLabel(day.date, timezone)}`}
+      className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-4 shadow-xl shadow-black/20 backdrop-blur-md"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold capitalize text-white">

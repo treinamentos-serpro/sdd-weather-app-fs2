@@ -64,10 +64,11 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-white/75">{locationLabel}</p>
+          <p className="break-words text-sm font-medium text-white/75">{locationLabel}</p>
           <h2
             id="current-weather-title"
             className="mt-2 text-5xl font-bold tracking-normal text-white min-[360px]:text-6xl sm:text-7xl"
+            aria-label={`Temperatura atual: ${formatTemperature(current.temperatureC, unit)}`}
           >
             {formatTemperature(current.temperatureC, unit)}
           </h2>

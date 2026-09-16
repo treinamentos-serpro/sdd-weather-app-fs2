@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useId, useState } from 'react';
 
 interface SearchBarProps {
   onSearch: (city: string) => void;
@@ -7,16 +7,24 @@ interface SearchBarProps {
 
 export default function SearchBar({ onSearch, disabled = false }: SearchBarProps) {
   const [city, setCity] = useState('');
+  const [validationMessage, setValidationMessage] = useState('');
+  const validationId = useId();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedCity = city.trim();
 
-    if (trimmedCity.length === 0) {
+    if (trimmedCity.length < 2 || trimmedCity.length > 80) {
+      setValidationMessage(
+        trimmedCity.length > 80
+          ? 'Informe uma cidade com no máximo 80 caracteres.'
+          : 'Informe pelo menos 2 caracteres para buscar uma cidade.',
+      );
       return;
     }
 
+    setValidationMessage('');
     onSearch(trimmedCity);
   }
 
@@ -32,17 +40,29 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
           Cidade
         </label>
         <input
-          className="w-full rounded-md border border-white/10 bg-night-800/80 px-4 py-3 text-base text-white outline-none transition placeholder:text-white/45 focus:border-accent-400 focus:ring-2 focus:ring-accent-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-md border border-white/10 bg-night-800/80 px-4 py-3 text-base text-white outline-none transition placeholder:text-white/60 focus:border-accent-400 focus:ring-2 focus:ring-accent-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+          aria-describedby={validationMessage ? validationId : undefined}
+          aria-invalid={validationMessage ? 'true' : undefined}
           disabled={disabled}
           id="weather-city-search"
-          onChange={(event) => setCity(event.target.value)}
+          onChange={(event) => {
+            setCity(event.target.value);
+            if (validationMessage) {
+              setValidationMessage('');
+            }
+          }}
           placeholder="Digite uma cidade"
           type="search"
           value={city}
         />
+        {validationMessage ? (
+          <p className="text-sm text-sun" id={validationId} role="alert">
+            {validationMessage}
+          </p>
+        ) : null}
       </div>
       <button
-        className="rounded-md bg-accent-500 px-5 py-3 text-sm font-semibold text-night-900 transition hover:bg-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 focus:ring-offset-night-900 disabled:cursor-not-allowed disabled:opacity-60"
+        className="min-h-11 rounded-md bg-accent-500 px-5 py-3 text-sm font-semibold text-night-900 transition hover:bg-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 focus:ring-offset-night-900 disabled:cursor-not-allowed disabled:opacity-60 sm:shrink-0"
         disabled={disabled || city.trim().length === 0}
         type="submit"
       >

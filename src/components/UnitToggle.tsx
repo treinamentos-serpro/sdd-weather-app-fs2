@@ -63,7 +63,7 @@ export default function UnitToggle({ unit, onChange }: UnitToggleProps) {
           <button
             aria-label={`Usar ${option.value === 'celsius' ? 'Celsius' : 'Fahrenheit'}`}
             aria-pressed={isActive}
-            className={`rounded-md px-4 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 focus:ring-offset-night-900 ${
+            className={`min-h-11 min-w-14 rounded-md px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 focus:ring-offset-night-900 ${
               isActive
                 ? 'bg-accent-500 text-night-900 shadow-lg shadow-accent-500/20'
                 : 'text-white/75 hover:bg-white/10 hover:text-white'
