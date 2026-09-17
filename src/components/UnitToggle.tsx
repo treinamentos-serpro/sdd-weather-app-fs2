@@ -53,9 +53,8 @@ function UnitToggle({ unit, onChange }: UnitToggleProps) {
   return (
     <div
       aria-label="Unidade de temperatura"
-      aria-orientation="horizontal"
       className="inline-flex rounded-lg border border-white/10 bg-white/5 p-1 shadow-xl shadow-black/20 backdrop-blur-md"
-      role="toolbar"
+      role="group"
     >
       {units.map((option, index) => {
         const isActive = option.value === unit;
@@ -75,7 +74,6 @@ function UnitToggle({ unit, onChange }: UnitToggleProps) {
             ref={(element) => {
               buttonRefs.current[index] = element;
             }}
-            tabIndex={isActive ? 0 : -1}
             type="button"
           >
             {option.label}

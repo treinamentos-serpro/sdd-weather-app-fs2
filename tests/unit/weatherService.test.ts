@@ -96,17 +96,13 @@ describe('searchCities', () => {
     const abortError = new DOMException('Aborted', 'AbortError');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
 
-    await expect(searchCities('São Paulo')).rejects.toThrow(
-      'A busca demorou mais que o esperado. Tente novamente.',
-    );
+    await expect(searchCities('São Paulo')).rejects.toThrow('A requisição demorou demais.');
   });
 
   it('throws a friendly message on generic network failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
 
-    await expect(searchCities('São Paulo')).rejects.toThrow(
-      'Não foi possível conectar ao serviço de clima. Verifique sua conexão e tente novamente.',
-    );
+    await expect(searchCities('São Paulo')).rejects.toThrow('Falha de rede.');
   });
 
   it('throws a friendly message when rate limited', async () => {
@@ -214,9 +210,7 @@ describe('getWeather', () => {
     const abortError = new DOMException('Aborted', 'AbortError');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
 
-    await expect(getWeather(city)).rejects.toThrow(
-      'A busca demorou mais que o esperado. Tente novamente.',
-    );
+    await expect(getWeather(city)).rejects.toThrow('A requisição demorou demais.');
   });
 
   it('throws WeatherServiceError when fewer than five daily dates are returned', async () => {

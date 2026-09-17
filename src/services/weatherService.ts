@@ -15,9 +15,8 @@ export class WeatherServiceError extends Error {
 }
 
 const OFFLINE_MESSAGE = 'Sem conexão com a internet. Verifique sua rede e tente novamente.';
-const TIMEOUT_MESSAGE = 'A busca demorou mais que o esperado. Tente novamente.';
-const NETWORK_ERROR_MESSAGE =
-  'Não foi possível conectar ao serviço de clima. Verifique sua conexão e tente novamente.';
+const TIMEOUT_MESSAGE = 'A requisição demorou demais.';
+const NETWORK_ERROR_MESSAGE = 'Falha de rede.';
 
 function isOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false;

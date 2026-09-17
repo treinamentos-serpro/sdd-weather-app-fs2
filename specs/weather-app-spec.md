@@ -23,12 +23,14 @@ A interface será em pt-BR, não exigirá cadastro ou chave de API e deverá fun
 
 - O geocoding deve fornecer, no mínimo, nome da localidade, país, latitude e longitude. Estado ou região são opcionais.
 - A consulta meteorológica deve fornecer timezone e dados diários para hoje e os quatro dias seguintes. Sem timezone ou datas diárias válidas, a resposta é inválida para a previsão.
-- O clima atual usa temperatura a 2 m, umidade relativa, velocidade do vento a 10 m, pressão ao nível da superfície, precipitação e código meteorológico da fonte.
-- A previsão diária usa data local, temperatura mínima e máxima, precipitação e código meteorológico diário.
-- Temperatura é exibida em °C por padrão ou °F após conversão local. Vento é exibido em km/h, pressão em hPa e precipitação em mm.
-- Temperaturas são exibidas com uma casa decimal; vento, pressão e precipitação são exibidos com uma casa decimal. O arredondamento ocorre somente para apresentação.
+- O clima atual usa temperatura a 2 m, umidade relativa a 2 m, velocidade do vento a 10 m, pressão ao nível do mar, precipitação acumulada na última hora e código meteorológico (`weather_code`) da fonte.
+- A previsão diária usa data local, temperatura mínima e máxima, precipitação total do dia (`precipitation_sum`) e código meteorológico diário (`weather_code`).
+- Temperatura é exibida em °C por padrão ou °F após conversão local, com tolerância de ±0,1 °C na ida e volta entre unidades. Vento é exibido em km/h, pressão em hPa e precipitação em mm.
+- Temperatura, vento, pressão e precipitação são exibidos com uma casa decimal. Umidade é exibida como número inteiro de 0 a 100, sem casas decimais. O arredondamento ocorre somente para apresentação.
+- A requisição de geocoding deve solicitar resultados em pt-BR; quando a fonte não fornecer tradução, o nome original retornado é exibido sem alteração.
 - Códigos meteorológicos da fonte devem ser convertidos para descrições em pt-BR; códigos desconhecidos usam “Condição indisponível”.
-- Campos meteorológicos opcionais ausentes exibem `—`. Metadados essenciais ausentes ou inválidos geram erro de dados e não iniciam ou não concluem a exibição da previsão.
+- Campos meteorológicos opcionais ausentes exibem `—`. Metadados essenciais (timezone, datas diárias, latitude e longitude) ausentes ou inválidos geram erro de dados e não iniciam ou não concluem a exibição da previsão.
+- Se a fonte retornar mais de cinco dias válidos, apenas os cinco primeiros (hoje e os quatro seguintes) são usados; os dias adicionais são descartados.
 
 ## Functional Requirements
 
@@ -42,7 +44,7 @@ O sistema deve apresentar no máximo 10 sugestões, ordenadas pela relevância r
 
 ### RF3 — Exibir clima atual
 
-Após a seleção de uma cidade, o sistema deve exibir, para a localidade escolhida, temperatura, condição meteorológica, umidade, vento, pressão e precipitação. A temperatura deve ser apresentada em Celsius por padrão.
+Após a seleção de uma cidade, o sistema deve exibir, para a localidade escolhida, temperatura, condição meteorológica, umidade, vento, pressão e precipitação. A temperatura deve ser apresentada em Celsius por padrão. Ao selecionar uma cidade diferente da atualmente exibida, os dados da cidade anterior devem ser removidos antes de exibir o carregamento da nova consulta.
 
 ### RF4 — Exibir previsão de cinco dias
 
@@ -58,7 +60,7 @@ O sistema deve comunicar os estados inicial, carregamento de sugestões, sem res
 
 ### RF7 — Tentar novamente
 
-Quando a busca de cidade ou a consulta meteorológica falhar por erro de rede, timeout, rate limiting, indisponibilidade da fonte ou erro de dados, o sistema deve oferecer uma ação de nova tentativa para repetir somente a operação que falhou. O retry manual não deve exceder uma requisição por acionamento.
+Quando a busca de cidade ou a consulta meteorológica falhar por erro de rede, timeout, rate limiting, indisponibilidade da fonte ou erro de dados, o sistema deve oferecer uma ação de nova tentativa para repetir somente a operação que falhou. O retry manual não deve exceder uma requisição por acionamento e a ação deve ficar desabilitada enquanto a nova tentativa estiver em andamento.
 
 ## User Stories
 
@@ -107,6 +109,7 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - **Given** que o serviço retorna estado ou região, **When** a sugestão correspondente é exibida, **Then** o estado ou região também é apresentado.
 - **Given** que o geocoding retorna mais de 10 localidades, **When** as sugestões são exibidas, **Then** somente as 10 mais relevantes são apresentadas na ordem retornada pela fonte.
 - **Given** que há mais de uma sugestão, **When** a pessoa seleciona uma delas, **Then** somente a localidade selecionada é usada para a consulta meteorológica.
+- **Given** que o geocoding retorna exatamente uma sugestão, **When** as sugestões são exibidas, **Then** a seleção explícita ainda é exigida e o forecast não é solicitado automaticamente.
 - **Given** que a pessoa seleciona uma sugestão sem latitude ou longitude válidas, **When** o sistema prepara a consulta meteorológica, **Then** o forecast não é solicitado e a interface informa que a localidade não pode ser consultada.
 - **Given** que a pessoa seleciona uma sugestão com latitude e longitude válidas, **When** o sistema prepara a consulta meteorológica, **Then** a requisição usa exatamente essas coordenadas.
 
@@ -116,6 +119,7 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - **Given** que a primeira visualização do forecast foi concluída com sucesso, **When** a pessoa observa a temperatura atual, **Then** ela é exibida em Celsius.
 - **Given** que um campo meteorológico opcional não é fornecido pela fonte, **When** a tela exibe o clima atual, **Then** o campo permanece visível com `—` e o layout não quebra.
 - **Given** que timezone, data atual ou coordenadas da resposta são ausentes ou inválidos, **When** o forecast é processado, **Then** a interface exibe erro de dados e não apresenta a previsão como válida.
+- **Given** que uma cidade diferente da atualmente exibida é selecionada, **When** a nova consulta é iniciada, **Then** os dados da cidade anterior são removidos antes de exibir o estado de carregamento.
 
 ### CA-RF4 — Exibir previsão de cinco dias
 
@@ -123,6 +127,7 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - **Given** que o forecast informa um timezone, **When** o período da previsão é calculado, **Then** os cinco itens correspondem a hoje e aos quatro dias seguintes nesse timezone.
 - **Given** que um item diário está disponível, **When** ele é exibido, **Then** apresenta data, temperatura mínima, temperatura máxima, condição e precipitação, usando `—` somente para campos opcionais ausentes.
 - **Given** que os dados necessários estão disponíveis, **When** a previsão é exibida, **Then** ela não adiciona um sexto dia nem omite o dia atual.
+- **Given** que a fonte retorna mais de cinco dias válidos, **When** a previsão é exibida, **Then** apenas os cinco primeiros dias (hoje e os quatro seguintes) são apresentados e os dias adicionais são descartados.
 - **Given** que há menos de cinco datas válidas ou uma data diária está ausente, **When** a resposta é processada, **Then** a interface exibe erro de dados e não apresenta uma previsão parcial como previsão de cinco dias.
 
 ### CA-RF5 — Alternar unidade de temperatura
@@ -130,15 +135,16 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - **Given** que a pessoa acessa a interface pela primeira vez, **When** o controle de unidade é exibido, **Then** Celsius está selecionado.
 - **Given** que há temperaturas atuais e diárias carregadas, **When** a pessoa alterna para Fahrenheit, **Then** todas as temperaturas visíveis são convertidas e atualizadas.
 - **Given** que os dados meteorológicos já foram carregados, **When** a pessoa alterna entre Celsius e Fahrenheit, **Then** nenhuma nova requisição de geocoding ou forecast é disparada.
-- **Given** que a pessoa visualiza valores convertidos em Fahrenheit, **When** retorna para Celsius, **Then** os valores correspondem aos valores originais em Celsius após arredondamento para uma casa decimal.
+- **Given** que a pessoa visualiza valores convertidos em Fahrenheit, **When** retorna para Celsius, **Then** os valores correspondem aos valores originais em Celsius, com tolerância de ±0,1 °C, após arredondamento para uma casa decimal.
 
 ### CA-RF6 — Comunicar estados da interface
 
 - **Given** que nenhuma cidade foi selecionada, **When** a pessoa acessa o aplicativo pela primeira vez, **Then** a interface orienta a iniciar uma busca.
-- **Given** que uma busca de cidade ou forecast está em andamento, **When** a pessoa observa a interface, **Then** o sistema indica carregamento e não apresenta dados incompletos como definitivos.
+- **Given** que uma busca de cidade ou forecast está em andamento, **When** a pessoa observa a interface, **Then** um indicador de carregamento é exibido e nenhum card de clima atual ou previsão é renderizado até a resposta ser concluída com sucesso.
 - **Given** que o geocoding não retorna cidades correspondentes, **When** a busca termina, **Then** a interface informa que nenhum resultado foi encontrado e orienta uma nova busca.
-- **Given** que ocorre uma falha no geocoding, **When** a busca termina, **Then** a interface informa que a busca não pôde ser concluída e permanece utilizável.
+- **Given** que ocorre uma falha no geocoding, **When** a busca termina, **Then** a interface exibe uma mensagem de erro e o campo de busca permanece habilitado para uma nova tentativa imediata.
 - **Given** que ocorre uma falha de forecast, timeout ou indisponibilidade de rede, **When** o erro é identificado, **Then** a interface informa o problema e apresenta uma ação de nova tentativa.
+- **Given** que uma requisição de geocoding ou forecast não recebe resposta em até 8 segundos, **When** o timeout é atingido, **Then** o carregamento é encerrado e o estado de erro de timeout é exibido.
 - **Given** que a resposta contém campos meteorológicos opcionais ausentes, **When** os dados são exibidos, **Then** a interface mantém a estrutura e apresenta `—` nos campos afetados.
 - **Given** que a resposta contém metadados essenciais ausentes ou inválidos, **When** os dados são processados, **Then** a interface exibe erro de dados e não apresenta o forecast como válido.
 - **Given** que uma nova busca foi iniciada antes da conclusão da anterior, **When** a resposta anterior chega depois da nova busca, **Then** a resposta anterior é descartada e não altera as sugestões exibidas.
@@ -148,9 +154,10 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - **Given** que o geocoding falhou, **When** a interface exibe o estado de erro, **Then** apresenta uma ação identificável como “Tentar novamente” para repetir o geocoding.
 - **Given** que o forecast falhou para uma cidade selecionada, **When** a interface exibe o estado de erro, **Then** apresenta uma ação identificável como “Tentar novamente” para repetir o forecast.
 - **Given** que uma operação falhou, **When** a pessoa aciona “Tentar novamente” uma vez, **Then** o sistema realiza exatamente uma nova requisição para a mesma operação.
+- **Given** que uma ação de “Tentar novamente” está em andamento, **When** a pessoa aciona o botão novamente antes da resposta, **Then** nenhuma segunda requisição é iniciada e o botão permanece desabilitado até a conclusão.
 - **Given** que o geocoding falhou e a nova tentativa é bem-sucedida, **When** as sugestões são recebidas, **Then** a mensagem de erro é removida e as sugestões são exibidas.
 - **Given** que o forecast falhou e a nova tentativa é bem-sucedida, **When** o forecast é recebido, **Then** a mensagem de erro é removida e o clima atual e a previsão são exibidos.
-- **Given** que a nova tentativa falha, **When** o erro é recebido, **Then** a interface permanece utilizável e mantém uma mensagem compreensível com a possibilidade de tentar novamente.
+- **Given** que a nova tentativa falha, **When** o erro é recebido, **Then** a mensagem de erro anterior é atualizada, sem duplicação, e a ação “Tentar novamente” permanece visível e habilitada.
 
 ## Traceability Matrix
 
@@ -161,7 +168,7 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 | US3 — Consultar as condições atuais | CA-RF3 | RNF1, RNF2, RNF3, RNF4, RNF6, RNF7, RNF8, RNF9 |
 | US4 — Planejar os próximos dias | CA-RF4 | RNF1, RNF2, RNF3, RNF4, RNF6, RNF7, RNF8, RNF9 |
 | US5 — Escolher a unidade de temperatura | CA-RF5 | RNF1, RNF2, RNF3, RNF6, RNF7, RNF8 |
-| US6 — Entender o estado da consulta | CA-RF6 | RNF2, RNF3, RNF4, RNF6, RNF7, RNF8 |
+| US6 — Entender o estado da consulta | CA-RF6 | RNF2, RNF3, RNF4, RNF6, RNF7, RNF8, RNF9 |
 | US7 — Recuperar uma falha | CA-RF7 | RNF1, RNF2, RNF3, RNF4, RNF7, RNF8, RNF9 |
 
 ## Non-Functional Requirements
@@ -171,7 +178,7 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - O shell inicial deve estar interativo em até 2 segundos no percentil p95 em uma conexão 4G simulada e dispositivo móvel de referência definidos no plano de testes.
 - Após a seleção de uma sugestão, o forecast deve ser exibido em até 3 segundos no p95 no mesmo cenário, salvo indisponibilidade ou timeout da fonte.
 - A alternância de unidade deve atualizar os valores em até 100 ms e não pode depender de rede.
-- Toda requisição deve exibir estado de carregamento até sucesso, erro ou timeout.
+- Toda requisição de geocoding ou forecast deve ter timeout de 8 segundos; ao atingi-lo sem resposta, o sistema transita para o estado de erro de timeout.
 
 ### RNF2 — Responsividade
 
@@ -201,8 +208,8 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 ### RNF6 — Idioma e formatação
 
 - Textos da interface, mensagens e ações da primeira versão devem estar em pt-BR.
-- Datas devem usar formato local pt-BR e ser calculadas no timezone válido retornado pela fonte; timezone ausente ou inválido deve produzir erro de dados.
-- Temperaturas, vento, pressão e precipitação devem respeitar as unidades e a precisão definidas no contrato de dados.
+- Datas devem usar formato local pt-BR e ser calculadas no timezone retornado pela fonte de dados.
+- Temperaturas, vento, pressão, precipitação e umidade devem respeitar as unidades e a precisão definidas no contrato de dados.
 
 ### RNF7 — Compatibilidade
 
@@ -218,6 +225,8 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - Nenhuma chave, credencial ou dado pessoal deve ser incorporado ao cliente ou persistido pelo aplicativo.
 - A aplicação não deve solicitar permissão de geolocalização na v1.
 - Dados recebidos da fonte devem ser validados antes de serem exibidos ou usados em novas requisições.
+- Timezone, datas diárias, latitude e longitude ausentes ou inválidos na resposta são tratados como erro de dados e impedem a exibição do forecast.
+- Uma ação de retry não pode gerar uma nova requisição enquanto a anterior para a mesma operação ainda estiver em andamento.
 
 ## Edge Cases
 
@@ -236,6 +245,8 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - Alternância de unidade durante carregamento ou após resposta parcial: manter o controle consistente e converter somente valores disponíveis.
 - Usuário seleciona a mesma cidade novamente: a interface deve continuar estável e não exibir dados de outra localidade.
 - Viewport mínimo de 320px: preservar leitura, controles e ações sem sobreposição ou rolagem horizontal desnecessária.
+- Fonte retorna mais de cinco dias na previsão: exibir apenas os cinco primeiros (hoje e os quatro seguintes) e descartar os demais.
+- Troca de cidade com dados de outra localidade já exibidos: remover o forecast anterior antes de exibir o carregamento da nova consulta.
 
 ## Assumptions
 
@@ -248,6 +259,7 @@ Os critérios abaixo são verificáveis e estão vinculados aos requisitos funci
 - Não há login, dados pessoais, persistência de servidor ou necessidade de conta.
 - O dispositivo possui conexão com a internet para realizar as consultas; indisponibilidade é tratada como erro recuperável.
 - `—` é uma representação aceitável para um campo meteorológico ausente.
+- O serviço de geocoding da Open-Meteo aceita parâmetro de idioma e retorna nomes em pt-BR quando disponíveis.
 
 ## Risks
 
